@@ -78,41 +78,44 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ================================
-# MANAGER DASHBOARD
+# LOAD DATA
 # ================================
 st.title(f"📋 Manager Dashboard - {st.session_state.outlet_name}")
 
-# Load data from Google Sheets
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 
-# Filter only for the logged-in outlet
+# Filter only for logged-in outlet
 df = df[df["Outlet"].str.lower() == st.session_state.outlet_name.lower()]
 
-# Convert 'Date Submitted' to datetime.date
+# Convert dates to datetime.date
 if "Date Submitted" in df.columns:
     df["Date Submitted"] = pd.to_datetime(df["Date Submitted"], errors='coerce').dt.date
+if "Expiry" in df.columns:
+    df["Expiry"] = pd.to_datetime(df["Expiry"], errors='coerce').dt.date
 
 # ================================
 # SIDEBAR FILTERS
 # ================================
 st.sidebar.header("Filters")
 
-# Form Type filter
-if "Form Type" in df.columns:
-    form_types = df["Form Type"].dropna().unique().tolist()
-    selected_form_types = st.sidebar.multiselect("Form Type", form_types, default=form_types)
-    df = df[df["Form Type"].isin(selected_form_types)]
+# Form Type dropdown (single selection)
+form_types = df["Form Type"].dropna().unique().tolist()
+form_types.sort()
+form_types.insert(0, "All")  # Add "All" option
+selected_form_type = st.sidebar.selectbox("Form Type", form_types)
+if selected_form_type != "All":
+    df = df[df["Form Type"] == selected_form_type]
 
-# Date filter (free selection, can select any date)
-if "Date Submitted" in df.columns:
-    col1, col2 = st.sidebar.columns(2)
-    start_date = col1.date_input("From", value=datetime.today().date())
-    end_date = col2.date_input("To", value=datetime.today().date())
-    df = df[(df["Date Submitted"] >= start_date) & (df["Date Submitted"] <= end_date)]
+# Date filter column selection
+date_column = st.sidebar.selectbox("Filter by Date Column", ["Date Submitted", "Expiry"])
+col1, col2 = st.sidebar.columns(2)
+start_date = col1.date_input("From", value=datetime.today().date())
+end_date = col2.date_input("To", value=datetime.today().date())
+df = df[(df[date_column] >= start_date) & (df[date_column] <= end_date)]
 
 # Search filter
-search_query = st.sidebar.text_input("Search in table")
+search_query = st.sidebar.text_input("Search")
 if search_query:
     df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)]
 
@@ -122,12 +125,10 @@ if search_query:
 if df.empty:
     st.info("No records match the filters.")
 else:
-    st.markdown(f"**Showing records from {start_date} to {end_date}**")
+    st.markdown(f"**Showing records from {start_date} to {end_date} ({date_column})**")
     st.dataframe(df, use_container_width=True)
 
-    # ================================
-    # DOWNLOAD CSV BUTTON
-    # ================================
+    # Download CSV
     csv = df.to_csv(index=False).encode('utf-8')
     st.download_button(
         label="📥 Download CSV",
