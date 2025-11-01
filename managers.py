@@ -126,8 +126,12 @@ if df.empty:
     st.info("No records match the filters.")
 else:
     st.markdown(f"**Showing records from {start_date} to {end_date} ({date_column})**")
-    
-    # Only Action Took editable
+
+    # Reorder columns to show "Action Took" first
+    columns_order = ["Action Took"] + [col for col in df.columns if col != "Action Took"]
+    df = df[columns_order]
+
+    # Editable table with highlighted Action Took
     edited_df = st.data_editor(
         df,
         num_rows="dynamic",
@@ -136,6 +140,8 @@ else:
             "Action Took": st.column_config.TextColumn(
                 "Action Took",
                 help="Edit the action took for this item",
+                max_chars=200,
+                cell_color="lightyellow",  # highlight column
             )
         },
         hide_index=True
