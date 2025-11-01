@@ -57,6 +57,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "outlet_name" not in st.session_state:
     st.session_state.outlet_name = None
+if "df" not in st.session_state:
+    st.session_state.df = pd.DataFrame()
 
 # ================================
 # LOGIN PAGE
@@ -94,6 +96,10 @@ if "Date Submitted" in df.columns:
 if "Expiry" in df.columns:
     df["Expiry"] = pd.to_datetime(df["Expiry"], errors='coerce').dt.date
 
+# Ensure Action Took column exists
+if "Action Took" not in df.columns:
+    df["Action Took"] = ""
+
 # ================================
 # SIDEBAR FILTERS
 # ================================
@@ -119,20 +125,51 @@ search_query = st.sidebar.text_input("Search")
 if search_query:
     df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)]
 
+st.session_state.df = df.copy()
+
 # ================================
-# DISPLAY TABLE
+# DISPLAY TABLE WITH EDITABLE ACTION TOOK
 # ================================
 if df.empty:
     st.info("No records match the filters.")
 else:
     st.markdown(f"**Showing records from {start_date} to {end_date} ({date_column})**")
-    st.dataframe(df, use_container_width=True)
 
-    # Download CSV
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Download CSV",
-        data=csv,
-        file_name=f"{st.session_state.outlet_name}_data.csv",
-        mime='text/csv'
-    )
+    edited_actions = []
+
+    for i, row in df.iterrows():
+        st.markdown(
+            f"**Item:** {row['Item Name']} | Qty: {row.get('Qty', '')} | Staff: {row.get('Staff Name','')} | Form Type: {row.get('Form Type','')} | Expiry: {row.get('Expiry','')} | Date Submitted: {row.get('Date Submitted','')}"
+        )
+        action_value = st.text_input("Action Took", value=row.get("Action Took",""), key=f"action_{i}")
+        edited_actions.append((i, action_value))
+        st.markdown("---")
+
+    def submit_action():
+        try:
+            all_values = sheet.get_all_values()
+            headers = all_values[0]
+            action_idx = headers.index("Action Took")
+            action_date_idx = headers.index("Action Took Date") if "Action Took Date" in headers else None
+            outlet_idx = headers.index("Outlet")
+            item_idx = headers.index("Item Name")
+
+            today = datetime.today().strftime("%Y-%m-%d")
+
+            for i, action in edited_actions:
+                row = df.iloc[i]
+                for j, sheet_row in enumerate(all_values[1:], start=2):
+                    if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == st.session_state.outlet_name.lower():
+                        sheet.update_cell(j, action_idx + 1, action)
+                        if action_date_idx:
+                            sheet.update_cell(j, action_date_idx + 1, today)
+                        else:
+                            # Add Action Took Date column if missing
+                            sheet.update_cell(1, len(headers)+1, "Action Took Date")
+                            sheet.update_cell(j, len(headers)+1, today)
+
+            st.success("✅ Action Took updated successfully!")
+        except Exception as e:
+            st.error(f"❌ Failed to update: {e}")
+
+    st.button("💾 Submit Action Took", on_click=submit_action)
