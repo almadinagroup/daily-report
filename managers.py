@@ -151,7 +151,7 @@ else:
     # ================================
     def save_action_took():
         try:
-            # edited_df already has the latest changes
+            # Use the latest edited_df returned by st.data_editor
             all_values = sheet.get_all_values()
             headers = all_values[0]
             action_idx = headers.index("Action Took")
@@ -170,7 +170,6 @@ else:
                             sheet.update_cell(j, date_idx + 1, today_date)
 
             st.success("✅ Action Took updated successfully!")
-            st.experimental_rerun()  # reload page to reflect changes immediately
 
         except Exception as e:
             st.error(f"❌ Failed to update: {e}")
