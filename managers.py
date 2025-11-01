@@ -75,7 +75,7 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid password")
 
     st.button("Login", on_click=login_callback)
-    st.stop()  # Stop further execution until login is successful
+    st.stop()
 
 # ================================
 # MANAGER DASHBOARD
@@ -107,8 +107,10 @@ if "Form Type" in df.columns:
 # Date filter
 if "Date Submitted" in df.columns:
     col1, col2 = st.sidebar.columns(2)
-    start_date = col1.date_input("From", min(df["Date Submitted"].dropna(), default=datetime.today().date()))
-    end_date = col2.date_input("To", max(df["Date Submitted"].dropna(), default=datetime.today().date()))
+    min_date = df["Date Submitted"].min()
+    max_date = df["Date Submitted"].max()
+    start_date = col1.date_input("From", min_value=min_date, max_value=max_date, value=min_date)
+    end_date = col2.date_input("To", min_value=min_date, max_value=max_date, value=max_date)
     df = df[(df["Date Submitted"] >= start_date) & (df["Date Submitted"] <= end_date)]
 
 # Search filter
@@ -117,16 +119,21 @@ if search_query:
     df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)]
 
 # ================================
-# DISPLAY DATA
+# DISPLAY TABLE
 # ================================
 if df.empty:
     st.info("No records match the filters.")
 else:
-    for i, row in df.iterrows():
-        st.markdown(f"### {row.get('Item Name', '')}  |  Qty: {row.get('Qty', '')}")
-        st.markdown(f"- **Form Type:** {row.get('Form Type', '')}")
-        st.markdown(f"- **Staff Name:** {row.get('Staff Name', '')}")
-        st.markdown(f"- **Expiry Date:** {row.get('Expiry', 'N/A')}")
-        st.markdown(f"- **Action Took:** {row.get('Action Took', '')}")
-        st.markdown(f"- **Date Submitted:** {row.get('Date Submitted', '')}")
-        st.markdown("---")
+    st.markdown(f"**Showing records from {start_date} to {end_date}**")
+    st.dataframe(df, use_container_width=True)
+
+    # ================================
+    # DOWNLOAD CSV BUTTON
+    # ================================
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download CSV",
+        data=csv,
+        file_name=f"{st.session_state.outlet_name}_data.csv",
+        mime='text/csv'
+    )
