@@ -131,7 +131,7 @@ else:
     columns_order = ["Action Took"] + [col for col in df.columns if col != "Action Took"]
     df = df[columns_order]
 
-    # Editable table with highlighted Action Took
+    # Editable table (only Action Took editable)
     edited_df = st.data_editor(
         df,
         num_rows="dynamic",
@@ -141,7 +141,6 @@ else:
                 "Action Took",
                 help="Edit the action took for this item",
                 max_chars=200,
-                cell_color="lightyellow",  # highlight column
             )
         },
         hide_index=True
