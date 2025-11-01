@@ -126,12 +126,8 @@ if df.empty:
     st.info("No records match the filters.")
 else:
     st.markdown(f"**Showing records from {start_date} to {end_date} ({date_column})**")
-
-    # Reorder columns to show "Action Took" first
-    columns_order = ["Action Took"] + [col for col in df.columns if col != "Action Took"]
-    df = df[columns_order]
-
-    # Editable table
+    
+    # Only Action Took editable
     edited_df = st.data_editor(
         df,
         num_rows="dynamic",
@@ -140,15 +136,12 @@ else:
             "Action Took": st.column_config.TextColumn(
                 "Action Took",
                 help="Edit the action took for this item",
-                max_chars=200,
             )
         },
         hide_index=True
     )
 
-    # ================================
-    # SAVE FUNCTION (Row-wise Update)
-    # ================================
+    # Save button
     def save_action_took():
         try:
             all_values = sheet.get_all_values()
@@ -160,21 +153,14 @@ else:
 
             today_date = datetime.now().strftime("%Y-%m-%d")
 
-            for i, sheet_row in enumerate(all_values[1:], start=2):
-                outlet_name = sheet_row[outlet_idx].lower()
-                item_name = sheet_row[item_idx]
-
-                match = edited_df[edited_df["Item Name"] == item_name]
-                if not match.empty and outlet_name == st.session_state.outlet_name.lower():
-                    new_action = match.iloc[0]["Action Took"]
-                    # Update only if changed
-                    if new_action != sheet_row[action_idx]:
-                        sheet.update_cell(i, action_idx + 1, new_action)
+            for i, row in edited_df.iterrows():
+                for j, sheet_row in enumerate(all_values[1:], start=2):
+                    if (sheet_row[item_idx] == row["Item Name"] and
+                        sheet_row[outlet_idx].lower() == st.session_state.outlet_name.lower()):
+                        sheet.update_cell(j, action_idx + 1, row["Action Took"])
                         if date_idx is not None:
-                            sheet.update_cell(i, date_idx + 1, today_date)
-
+                            sheet.update_cell(j, date_idx + 1, today_date)
             st.success("✅ Action Took updated successfully!")
-
         except Exception as e:
             st.error(f"❌ Failed to update: {e}")
 
