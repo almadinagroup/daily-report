@@ -4,6 +4,13 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # ================================
+# SAFE RERUN FLAG AT TOP
+# ================================
+if "just_logged_in" in st.session_state and st.session_state.just_logged_in:
+    st.session_state.just_logged_in = False
+    st.experimental_rerun()
+
+# ================================
 # PAGE CONFIG
 # ================================
 st.set_page_config(page_title="Manager Dashboard", layout="wide")
@@ -59,13 +66,6 @@ if "just_logged_in" not in st.session_state:
     st.session_state.just_logged_in = False
 
 # ================================
-# HANDLE SAFE RERUN AFTER LOGIN
-# ================================
-if st.session_state.just_logged_in:
-    st.session_state.just_logged_in = False
-    st.experimental_rerun()
-
-# ================================
 # LOGIN PAGE
 # ================================
 if not st.session_state.logged_in:
@@ -77,19 +77,20 @@ if not st.session_state.logged_in:
         if outlet_passwords.get(outlet) == password:
             st.session_state.logged_in = True
             st.session_state.outlet_name = outlet
-            st.session_state.just_logged_in = True
+            st.session_state.just_logged_in = True  # safe rerun
         else:
             st.error("❌ Invalid password")
+
+# ================================
+# MANAGER DASHBOARD
+# ================================
 else:
-    # ================================
-    # MANAGER DASHBOARD
-    # ================================
     st.title(f"📊 Manager Dashboard - {st.session_state.outlet_name}")
 
     if not sheets_connected:
         st.stop()
 
-    # Load data from Google Sheet
+    # Load data from Google Sheets
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
     st.session_state.df = df.copy()
@@ -113,13 +114,13 @@ else:
 
     st.subheader("📋 Filtered Records")
 
-    # Editable Action Took
+    # Editable Action Took column
     if not filtered_df.empty:
         for i, row in filtered_df.iterrows():
             st.write(f"**{row['Item Name']} - Qty: {row['Qty']}**")
             action = st.text_input(
-                "Action Took", 
-                value=row.get("Action Took", ""), 
+                "Action Took",
+                value=row.get("Action Took", ""),
                 key=f"action_{i}"
             )
             filtered_df.at[i, "Action Took"] = action
@@ -135,7 +136,6 @@ else:
 
                 # Update rows in Google Sheets
                 for i, row in filtered_df.iterrows():
-                    # Find the correct row in the sheet
                     for j, sheet_row in enumerate(all_values[1:], start=2):
                         if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == outlet_name.lower():
                             sheet.update_cell(j, action_idx + 1, row["Action Took"])
