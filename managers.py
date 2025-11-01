@@ -1,10 +1,17 @@
 import streamlit as st
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection
+from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
 
-st.set_page_config(page_title="Outlet Dashboard", layout="wide")
+# -------------------------------
+# Page config
+# -------------------------------
+st.set_page_config(page_title="Outlet Manager Dashboard", layout="wide")
 
-# --- Outlet credentials ---
+# -------------------------------
+# Outlet credentials
+# -------------------------------
 outlet_passwords = {
     "Hilal": "hilal123",
     "Safa Super": "safa123",
@@ -24,19 +31,37 @@ outlet_passwords = {
     "Port saeed": "port123"
 }
 
-# --- Google Sheets connection ---
-conn = st.connection("gsheets", type=GSheetsConnection)
-sheet_url = "https://docs.google.com/spreadsheets/d/1MK5WDETIFCRes-c8X16JjrNdrlEpHwv9vHvb96VVtM0/edit?gid=0"
+# -------------------------------
+# Google Sheets setup
+# -------------------------------
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1MK5WDETIFCRes-c8X16JjrNdrlEpHwv9vHvb96VVtM0/edit#gid=0"
+SHEET_NAME = "Items"
 
-# --- Login section ---
+try:
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_info(st.secrets["google_service_account"], scopes=scope)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_url(SHEET_URL).worksheet(SHEET_NAME)
+    sheets_connected = True
+except Exception as e:
+    st.error(f"⚠️ Google Sheets connection error: {e}")
+    sheets_connected = False
+
+# -------------------------------
+# Session state initialization
+# -------------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "outlet_name" not in st.session_state:
     st.session_state.outlet_name = None
+if "df" not in st.session_state:
+    st.session_state.df = pd.DataFrame()
 
+# -------------------------------
+# Login page
+# -------------------------------
 if not st.session_state.logged_in:
     st.title("🔐 Outlet Manager Login")
-
     outlet = st.selectbox("Select your Outlet", list(outlet_passwords.keys()))
     password = st.text_input("Enter Password", type="password")
 
@@ -45,64 +70,82 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.session_state.outlet_name = outlet
             st.success(f"✅ Logged in as {outlet}")
-            st.rerun()
+            st.experimental_rerun()
         else:
-            st.error("❌ Invalid password. Please try again.")
+            st.error("❌ Invalid password")
 else:
+    # Logout button
     st.sidebar.title(f"Welcome, {st.session_state.outlet_name}")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.outlet_name = None
-        st.rerun()
+        st.experimental_rerun()
 
-    st.title(f"📊 Dashboard - {st.session_state.outlet_name}")
+    st.title(f"📊 Manager Dashboard - {st.session_state.outlet_name}")
 
-    # --- Load data from Google Sheets ---
-    df = conn.read(spreadsheet=sheet_url, worksheet="Items", ttl=5)
-    df = df.dropna(how="all")
-
-    # --- Filter data by outlet ---
-    outlet_name = st.session_state.outlet_name
-    df_outlet = df[df["Outlet"].str.lower() == outlet_name.lower()]
-
-    # --- Filter options ---
-    st.sidebar.header("Filters")
-    unique_forms = df_outlet["Form Type"].dropna().unique().tolist()
-    form_filter = st.sidebar.multiselect("Select Form Type", unique_forms, default=unique_forms)
-
-    # Date filter (if Date column exists)
-    if "Date" in df_outlet.columns:
-        min_date = pd.to_datetime(df_outlet["Date"], errors='coerce').min()
-        max_date = pd.to_datetime(df_outlet["Date"], errors='coerce').max()
-        date_range = st.sidebar.date_input("Select Date Range", [min_date, max_date])
+    # -------------------------------
+    # Load sheet data
+    # -------------------------------
+    if sheets_connected:
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data)
+        st.session_state.df = df.copy()
     else:
-        date_range = []
+        st.stop()
 
-    # Search bar
-    search_query = st.text_input("🔍 Search any text in the table")
+    # -------------------------------
+    # Filter by outlet
+    # -------------------------------
+    outlet_name = st.session_state.outlet_name
+    df_outlet = st.session_state.df[df["Outlet"].str.lower() == outlet_name.lower()]
 
-    # --- Apply filters ---
-    filtered_df = df_outlet[df_outlet["Form Type"].isin(form_filter)]
+    # -------------------------------
+    # Sidebar filters
+    # -------------------------------
+    st.sidebar.header("Filters")
+    form_types = df_outlet["Form Type"].dropna().unique().tolist()
+    selected_form_types = st.sidebar.multiselect("Form Type", form_types, default=form_types)
 
-    if len(date_range) == 2 and "Date" in df_outlet.columns:
-        filtered_df = filtered_df[
-            (pd.to_datetime(filtered_df["Date"], errors='coerce') >= pd.to_datetime(date_range[0])) &
-            (pd.to_datetime(filtered_df["Date"], errors='coerce') <= pd.to_datetime(date_range[1]))
-        ]
+    search_query = st.sidebar.text_input("Search in table")
 
+    # Apply filters
+    filtered_df = df_outlet[df_outlet["Form Type"].isin(selected_form_types)]
     if search_query:
         filtered_df = filtered_df[filtered_df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)]
 
-    # --- Display Data ---
     st.subheader("📋 Filtered Records")
-    st.dataframe(filtered_df, use_container_width=True)
+    
+    # -------------------------------
+    # Editable Action Took
+    # -------------------------------
+    if not filtered_df.empty:
+        for i, row in filtered_df.iterrows():
+            st.write(f"**{row['Item Name']} - Qty: {row['Qty']}**")
+            action = st.text_input(
+                "Action Took", 
+                value=row.get("Action Took", ""), 
+                key=f"action_{i}"
+            )
+            filtered_df.at[i, "Action Took"] = action
 
-    st.write(f"Total Records: **{len(filtered_df)}**")
+        # Save button
+        if st.button("💾 Save Action Took to Google Sheets"):
+            try:
+                all_values = sheet.get_all_values()
+                headers = all_values[0]
+                action_idx = headers.index("Action Took")
+                outlet_idx = headers.index("Outlet")
+                item_idx = headers.index("Item Name")
 
-    # Download option
-    st.download_button(
-        label="⬇️ Download Filtered Data as CSV",
-        data=filtered_df.to_csv(index=False).encode('utf-8'),
-        file_name=f"{outlet_name}_filtered_data.csv",
-        mime="text/csv"
-    )
+                # Update rows in Google Sheets
+                for i, row in filtered_df.iterrows():
+                    # Find the correct row in the sheet
+                    for j, sheet_row in enumerate(all_values[1:], start=2):
+                        if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == outlet_name.lower():
+                            sheet.update_cell(j, action_idx + 1, row["Action Took"])
+                st.success("✅ Updated successfully in Google Sheets!")
+            except Exception as e:
+                st.error(f"❌ Failed to update: {e}")
+
+    else:
+        st.info("No records to show for your outlet and selected filters.")
