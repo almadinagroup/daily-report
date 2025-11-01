@@ -131,7 +131,7 @@ else:
     columns_order = ["Action Took"] + [col for col in df.columns if col != "Action Took"]
     df = df[columns_order]
 
-    # Editable table (only Action Took editable)
+    # Editable table
     edited_df = st.data_editor(
         df,
         num_rows="dynamic",
@@ -146,9 +146,12 @@ else:
         hide_index=True
     )
 
-    # Save button
+    # ================================
+    # SAVE FUNCTION
+    # ================================
     def save_action_took():
         try:
+            # edited_df already has the latest changes
             all_values = sheet.get_all_values()
             headers = all_values[0]
             action_idx = headers.index("Action Took")
@@ -165,7 +168,10 @@ else:
                         sheet.update_cell(j, action_idx + 1, row["Action Took"])
                         if date_idx is not None:
                             sheet.update_cell(j, date_idx + 1, today_date)
+
             st.success("✅ Action Took updated successfully!")
+            st.experimental_rerun()  # reload page to reflect changes immediately
+
         except Exception as e:
             st.error(f"❌ Failed to update: {e}")
 
