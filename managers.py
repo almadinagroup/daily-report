@@ -147,11 +147,10 @@ else:
     )
 
     # ================================
-    # SAVE FUNCTION
+    # SAVE FUNCTION (Batch Update)
     # ================================
     def save_action_took():
         try:
-            # Use the latest edited_df returned by st.data_editor
             all_values = sheet.get_all_values()
             headers = all_values[0]
             action_idx = headers.index("Action Took")
@@ -161,13 +160,40 @@ else:
 
             today_date = datetime.now().strftime("%Y-%m-%d")
 
-            for i, row in edited_df.iterrows():
-                for j, sheet_row in enumerate(all_values[1:], start=2):
-                    if (sheet_row[item_idx] == row["Item Name"] and
-                        sheet_row[outlet_idx].lower() == st.session_state.outlet_name.lower()):
-                        sheet.update_cell(j, action_idx + 1, row["Action Took"])
-                        if date_idx is not None:
-                            sheet.update_cell(j, date_idx + 1, today_date)
+            # Prepare batch updates
+            action_updates = []
+            date_updates = []
+
+            for i, sheet_row in enumerate(all_values[1:], start=2):
+                outlet_name = sheet_row[outlet_idx].lower()
+                item_name = sheet_row[item_idx]
+
+                match = edited_df[edited_df["Item Name"] == item_name]
+                if not match.empty and outlet_name == st.session_state.outlet_name.lower():
+                    new_action = match.iloc[0]["Action Took"]
+                    action_updates.append((i, new_action))
+                    if date_idx is not None:
+                        date_updates.append((i, today_date))
+
+            # Batch update Action Took column
+            if action_updates:
+                cell_list = sheet.range(min([r for r,_ in action_updates]),
+                                        action_idx + 1,
+                                        max([r for r,_ in action_updates]),
+                                        action_idx + 1)
+                for cell, (_, new_val) in zip(cell_list, action_updates):
+                    cell.value = new_val
+                sheet.update_cells(cell_list)
+
+            # Batch update Action Took Date column
+            if date_idx is not None and date_updates:
+                date_cells = sheet.range(min([r for r,_ in date_updates]),
+                                         date_idx + 1,
+                                         max([r for r,_ in date_updates]),
+                                         date_idx + 1)
+                for cell, (_, new_val) in zip(date_cells, date_updates):
+                    cell.value = new_val
+                sheet.update_cells(date_cells)
 
             st.success("✅ Action Took updated successfully!")
 
