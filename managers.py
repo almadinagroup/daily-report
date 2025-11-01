@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import datetime
 
 # ================================
 # PAGE CONFIG
@@ -55,6 +56,8 @@ if "outlet_name" not in st.session_state:
     st.session_state.outlet_name = None
 if "df" not in st.session_state:
     st.session_state.df = pd.DataFrame()
+if "page" not in st.session_state:
+    st.session_state.page = "Main"
 
 # ================================
 # LOGIN PAGE
@@ -73,30 +76,40 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid password")
 
     st.button("Login", on_click=login_callback)
-    st.stop()  # Stop further execution until login is successful
+    st.stop()
 
 # ================================
-# MANAGER DASHBOARD
+# NAVIGATION
 # ================================
-st.title(f"📊 Manager Dashboard - {st.session_state.outlet_name}")
+st.sidebar.title("Navigation")
+page_selection = st.sidebar.radio("Go to:", ["Main Dashboard", "Edit Action Took"])
+st.session_state.page = page_selection
 
 if not sheets_connected:
     st.stop()
 
-# Load data from Google Sheets
-data = sheet.get_all_records()
-df = pd.DataFrame(data)
-st.session_state.df = df.copy()
+# ================================
+# LOAD DATA FROM GOOGLE SHEETS
+# ================================
+def load_data():
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+    # Ensure Action Took Date column exists
+    if "Action Took Date" not in df.columns:
+        df["Action Took Date"] = ""
+    return df
 
-# Filter by outlet
+st.session_state.df = load_data()
+df = st.session_state.df
+
+# Filter for the logged-in outlet
 outlet_name = st.session_state.outlet_name
-df_outlet = st.session_state.df[st.session_state.df["Outlet"].str.lower() == outlet_name.lower()]
+df_outlet = df[df["Outlet"].str.lower() == outlet_name.lower()]
 
-# Sidebar filters
-st.sidebar.header("Filters")
+# Sidebar Filters
 form_types = df_outlet["Form Type"].dropna().unique().tolist()
 selected_form_types = st.sidebar.multiselect("Form Type", form_types, default=form_types)
-search_query = st.sidebar.text_input("Search in table")
+search_query = st.sidebar.text_input("Search")
 
 # Apply filters
 filtered_df = df_outlet[df_outlet["Form Type"].isin(selected_form_types)]
@@ -105,38 +118,84 @@ if search_query:
         filtered_df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)
     ]
 
-st.subheader("📋 Filtered Records")
+# ================================
+# MAIN DASHBOARD
+# ================================
+if st.session_state.page == "Main Dashboard":
+    st.title(f"📊 Main Dashboard - {outlet_name}")
 
-# Editable Action Took column
-if not filtered_df.empty:
-    for i, row in filtered_df.iterrows():
-        st.write(f"**{row['Item Name']} - Qty: {row['Qty']}**")
-        action = st.text_input(
-            "Action Took",
-            value=row.get("Action Took", ""),
-            key=f"action_{i}"
-        )
-        filtered_df.at[i, "Action Took"] = action
+    # Only show rows where Action Took is empty
+    display_df = filtered_df[filtered_df["Action Took"].isnull() | (filtered_df["Action Took"] == "")]
 
-    # Save button
-    def save_to_sheets():
-        try:
-            all_values = sheet.get_all_values()
-            headers = all_values[0]
-            action_idx = headers.index("Action Took")
-            outlet_idx = headers.index("Outlet")
-            item_idx = headers.index("Item Name")
+    if not display_df.empty:
+        for i, row in display_df.iterrows():
+            st.write(f"**{row['Item Name']} - Qty: {row['Qty']} - Staff: {row.get('Staff Name','')} - Barcode: {row.get('Barcode','')}**")
+            action = st.text_input(
+                "Action Took",
+                value="",
+                key=f"action_main_{i}"
+            )
+            submit_button = st.button("Submit Action Took", key=f"submit_main_{i}")
 
-            # Update rows in Google Sheets
-            for i, row in filtered_df.iterrows():
+            if submit_button and action.strip() != "":
+                # Update Google Sheet
+                all_values = sheet.get_all_values()
+                headers = all_values[0]
+                action_idx = headers.index("Action Took")
+                date_idx = headers.index("Action Took Date") if "Action Took Date" in headers else None
+                outlet_idx = headers.index("Outlet")
+                item_idx = headers.index("Item Name")
+
+                # Find row in sheet
                 for j, sheet_row in enumerate(all_values[1:], start=2):
                     if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == outlet_name.lower():
-                        sheet.update_cell(j, action_idx + 1, row["Action Took"])
-            st.success("✅ Updated successfully in Google Sheets!")
-        except Exception as e:
-            st.error(f"❌ Failed to update: {e}")
+                        sheet.update_cell(j, action_idx + 1, action)
+                        if date_idx is None:
+                            # Add Action Took Date column if missing
+                            sheet.update_cell(1, len(headers)+1, "Action Took Date")
+                            date_idx = len(headers)
+                        sheet.update_cell(j, date_idx + 1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                        st.success(f"✅ Action Took updated for {row['Item Name']}")
+                        break
+                st.experimental_rerun()
+    else:
+        st.info("No pending items to show.")
 
-    st.button("💾 Save Action Took to Google Sheets", on_click=save_to_sheets)
+# ================================
+# EDIT ACTION TOOK PAGE
+# ================================
+elif st.session_state.page == "Edit Action Took":
+    st.title(f"✏️ Edit Action Took - {outlet_name}")
 
-else:
-    st.info("No records to show for your outlet and selected filters.")
+    # Only show rows where Action Took is not empty
+    edit_df = filtered_df[filtered_df["Action Took"].notnull() & (filtered_df["Action Took"] != "")]
+
+    if not edit_df.empty:
+        for i, row in edit_df.iterrows():
+            st.write(f"**{row['Item Name']} - Qty: {row['Qty']} - Staff: {row.get('Staff Name','')} - Barcode: {row.get('Barcode','')}**")
+            action = st.text_input(
+                "Action Took",
+                value=row.get("Action Took", ""),
+                key=f"action_edit_{i}"
+            )
+            submit_button = st.button("Update Action Took", key=f"submit_edit_{i}")
+
+            if submit_button and action.strip() != "":
+                # Update Google Sheet
+                all_values = sheet.get_all_values()
+                headers = all_values[0]
+                action_idx = headers.index("Action Took")
+                date_idx = headers.index("Action Took Date") if "Action Took Date" in headers else None
+                outlet_idx = headers.index("Outlet")
+                item_idx = headers.index("Item Name")
+
+                for j, sheet_row in enumerate(all_values[1:], start=2):
+                    if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == outlet_name.lower():
+                        sheet.update_cell(j, action_idx + 1, action)
+                        if date_idx is not None:
+                            sheet.update_cell(j, date_idx + 1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                        st.success(f"✅ Action Took updated for {row['Item Name']}")
+                        break
+                st.experimental_rerun()
+    else:
+        st.info("No Action Took entries to edit.")
