@@ -120,19 +120,45 @@ if search_query:
     df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)]
 
 # ================================
-# DISPLAY TABLE
+# DISPLAY TABLE WITH EDITABLE ACTION TOOK
 # ================================
+st.subheader("📋 Outlet Items")
+
 if df.empty:
     st.info("No records match the filters.")
 else:
-    st.markdown(f"**Showing records from {start_date} to {end_date} ({date_column})**")
-    st.dataframe(df, use_container_width=True)
+    # Show table
+    edited_actions = []
+    for i, row in df.iterrows():
+        st.markdown(f"**Item:** {row['Item Name']} | Qty: {row.get('Qty', '')} | Staff: {row.get('Staff Name','')} | Form Type: {row.get('Form Type','')} | Expiry: {row.get('Expiry','')} | Date Submitted: {row.get('Date Submitted','')}")
+        action_value = st.text_input("Action Took", value=row.get("Action Took",""), key=f"action_{i}")
+        edited_actions.append((i, action_value))
+        st.markdown("---")
 
-    # Download CSV
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Download CSV",
-        data=csv,
-        file_name=f"{st.session_state.outlet_name}_data.csv",
-        mime='text/csv'
-    )
+    # Submit button to update Google Sheets
+    def submit_actions():
+        try:
+            all_values = sheet.get_all_values()
+            headers = all_values[0]
+            action_idx = headers.index("Action Took")
+            date_idx = headers.index("Action Took Date") if "Action Took Date" in headers else None
+            outlet_idx = headers.index("Outlet")
+            item_idx = headers.index("Item Name")
+
+            # Create Action Took Date column if missing
+            if date_idx is None:
+                sheet.update_cell(1, len(headers)+1, "Action Took Date")
+                date_idx = len(headers)
+
+            # Update each action
+            for i, action in edited_actions:
+                row_data = df.iloc[i]
+                for j, sheet_row in enumerate(all_values[1:], start=2):
+                    if sheet_row[item_idx] == row_data["Item Name"] and sheet_row[outlet_idx].lower() == st.session_state.outlet_name.lower():
+                        sheet.update_cell(j, action_idx + 1, action)
+                        sheet.update_cell(j, date_idx + 1, datetime.today().strftime("%Y-%m-%d"))
+            st.success("✅ Action Took updated successfully!")
+        except Exception as e:
+            st.error(f"❌ Failed to update: {e}")
+
+    st.button("💾 Submit Action Took", on_click=submit_actions)
