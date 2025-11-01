@@ -47,9 +47,6 @@ except Exception as e:
     st.error(f"⚠️ Google Sheets connection error: {e}")
     sheets_connected = False
 
-if not sheets_connected:
-    st.stop()
-
 # ================================
 # SESSION STATE INIT
 # ================================
@@ -77,125 +74,135 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid password")
 
     st.button("Login", on_click=login_callback)
-    st.stop()
+    st.stop()  # Stop further execution until login is successful
 
 # ================================
-# LOAD DATA FROM SHEET
+# MANAGER DASHBOARD
 # ================================
+st.title(f"📊 Manager Dashboard - {st.session_state.outlet_name}")
+
+if not sheets_connected:
+    st.stop()
+
+# Load data from Google Sheets
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 st.session_state.df = df.copy()
 
-# Only show items for this outlet
+# Ensure date columns are datetime
+if 'Date' in df.columns:
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+if 'Expiry' in df.columns:
+    df['Expiry'] = pd.to_datetime(df['Expiry'], errors='coerce')
+
+# ================================
+# Sidebar Navigation
+# ================================
+st.sidebar.header("Navigation")
+page = st.sidebar.radio("Go to", ["Main Dashboard", "Edit Dashboard", "View All Details"])
+
+# ================================
+# FILTERS
+# ================================
+st.sidebar.header("Filters")
+# Form Type
+form_types = df["Form Type"].dropna().unique().tolist()
+selected_form_types = st.sidebar.multiselect("Form Type", form_types, default=form_types)
+
+# Date Range Filter
+if 'Date' in df.columns:
+    start_date, end_date = st.sidebar.date_input(
+        "Select Date Range",
+        value=[df['Date'].min(), df['Date'].max()]
+    )
+else:
+    start_date = end_date = None
+
+# Search
+search_query = st.sidebar.text_input("Search")
+
+# Filter by outlet for main & edit dashboards
 outlet_name = st.session_state.outlet_name
-outlet_df = st.session_state.df[
-    st.session_state.df["Outlet"].str.lower() == outlet_name.lower()
-]
+df_outlet = df[df["Outlet"].str.lower() == outlet_name.lower()]
+
+# Apply Form Type filter
+df_outlet = df_outlet[df_outlet["Form Type"].isin(selected_form_types)]
+
+# Apply Date filter
+if start_date and end_date and 'Date' in df_outlet.columns:
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+    df_outlet = df_outlet[(df_outlet['Date'] >= start_date) & (df_outlet['Date'] <= end_date)]
+
+# Apply Search
+if search_query:
+    df_outlet = df_outlet[df_outlet.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)]
 
 # ================================
-# DASHBOARD PAGES
+# MAIN DASHBOARD (Action Took empty)
 # ================================
-page = st.sidebar.radio("Go to:", ["Main Dashboard", "Edit Dashboard"])
-
-# ---------------- Main Dashboard ----------------
 if page == "Main Dashboard":
-    st.title(f"📋 Main Dashboard - {outlet_name}")
+    st.subheader("📝 Items Pending Action Took")
+    main_df = df_outlet[df_outlet["Action Took"].isna() | (df_outlet["Action Took"] == "")]
 
-    # Only show items where Action Took is empty
-    main_df = outlet_df[outlet_df["Action Took"].isna() | (outlet_df["Action Took"] == "")]
+    if not main_df.empty:
+        for i, row in main_df.iterrows():
+            st.markdown(f"### {row['Item Name']} - Qty: {row['Qty']}")
+            st.markdown(f"**Staff:** {row.get('Staff Name', '')} | **Form Type:** {row.get('Form Type', '')} | **Expiry:** {row.get('Expiry', 'N/A')}")
+            action_input = st.text_input(
+                "Action Took",
+                value="",
+                key=f"action_{i}"
+            )
 
-    if main_df.empty:
-        st.info("No pending items for action.")
-    else:
-        # Sidebar filters
-        st.sidebar.header("Filters")
-        form_types = main_df["Form Type"].dropna().unique().tolist()
-        selected_form_types = st.sidebar.multiselect("Form Type", form_types, default=form_types)
-        search_query = st.sidebar.text_input("Search")
-
-        filtered_df = main_df[main_df["Form Type"].isin(selected_form_types)]
-        if search_query:
-            filtered_df = filtered_df[
-                filtered_df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)
-            ]
-
-        for i, row in filtered_df.iterrows():
-            st.markdown(f"### {row['Item Name']}  | Qty: {row['Qty']}")
-            st.markdown(f"**Form Type:** {row.get('Form Type', 'N/A')}  |  **Expiry Date:** {row.get('Expiry Date', 'N/A')}  |  **Staff:** {row.get('Staff Name', 'N/A')}  |  **Barcode:** {row.get('Barcode', 'N/A')}")
-
-            action_val = st.text_input("Action Took", value="", key=f"action_main_{i}")
-
-            def submit_action(i=i, action_val=action_val):
-                if not action_val.strip():
-                    st.warning("Please enter an Action Took value")
-                    return
+            # Submit Button
+            def submit_action(idx=i, action_val=action_input):
                 try:
                     all_values = sheet.get_all_values()
                     headers = all_values[0]
-                    # Add Action Took Date column if missing
-                    if "Action Took Date" not in headers:
-                        sheet.add_cols(1)
+                    action_idx = headers.index("Action Took")
+                    date_idx = None
+                    if "Action Took Date" in headers:
+                        date_idx = headers.index("Action Took Date")
+                    else:
+                        # Add new column for date if not exists
                         sheet.update_cell(1, len(headers)+1, "Action Took Date")
-                        headers.append("Action Took Date")
+                        date_idx = len(headers)
+                    
+                    outlet_idx = headers.index("Outlet")
+                    item_idx = headers.index("Item Name")
 
-                    action_idx = headers.index("Action Took")
-                    date_idx = headers.index("Action Took Date")
-
-                    # Update the correct row
+                    # Update Google Sheet
                     for j, sheet_row in enumerate(all_values[1:], start=2):
-                        if sheet_row[headers.index("Item Name")] == row["Item Name"] and sheet_row[headers.index("Outlet")].lower() == outlet_name.lower():
+                        if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == outlet_name.lower():
                             sheet.update_cell(j, action_idx+1, action_val)
                             sheet.update_cell(j, date_idx+1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                            st.success(f"✅ Action Took updated for {row['Item Name']}")
-                            break
-                    st.session_state.df = pd.DataFrame(sheet.get_all_records())
+                    st.success(f"✅ Action Took updated for {row['Item Name']}")
                 except Exception as e:
-                    st.error(f"❌ Error updating sheet: {e}")
+                    st.error(f"❌ Failed to update: {e}")
 
-            st.button("Submit Action Took", on_click=submit_action, key=f"submit_main_{i}")
-
-# ---------------- Edit Dashboard ----------------
-if page == "Edit Dashboard":
-    st.title(f"✏️ Edit Dashboard - {outlet_name}")
-
-    # Only show items where Action Took is filled
-    edit_df = outlet_df[~(outlet_df["Action Took"].isna() | (outlet_df["Action Took"] == ""))]
-
-    if edit_df.empty:
-        st.info("No items to edit.")
+            st.button("Submit Action Took", on_click=submit_action, key=f"submit_{i}")
+            st.markdown("---")
     else:
-        search_query = st.text_input("Search in Edit Dashboard")
-        filtered_edit = edit_df
-        if search_query:
-            filtered_edit = edit_df[
-                edit_df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)
-            ]
+        st.info("No pending items for your outlet.")
 
-        for i, row in filtered_edit.iterrows():
-            st.markdown(f"### {row['Item Name']}  | Qty: {row['Qty']}")
-            st.markdown(f"**Form Type:** {row.get('Form Type', 'N/A')}  |  **Expiry Date:** {row.get('Expiry Date', 'N/A')}  |  **Staff:** {row.get('Staff Name', 'N/A')}  |  **Barcode:** {row.get('Barcode', 'N/A')}  |  **Action Took Date:** {row.get('Action Took Date', 'N/A')}")
+# ================================
+# EDIT DASHBOARD (Action Took filled)
+# ================================
+elif page == "Edit Dashboard":
+    st.subheader("✏️ Items with Action Took")
+    edit_df = df_outlet[~df_outlet["Action Took"].isna() & (df_outlet["Action Took"] != "")]
+    if not edit_df.empty:
+        st.dataframe(edit_df)
+    else:
+        st.info("No items with Action Took yet.")
 
-            action_val = st.text_input("Action Took", value=row["Action Took"], key=f"action_edit_{i}")
-
-            def edit_action(i=i, action_val=action_val):
-                if not action_val.strip():
-                    st.warning("Please enter an Action Took value")
-                    return
-                try:
-                    all_values = sheet.get_all_values()
-                    headers = all_values[0]
-                    action_idx = headers.index("Action Took")
-                    date_idx = headers.index("Action Took Date")
-
-                    # Update the correct row
-                    for j, sheet_row in enumerate(all_values[1:], start=2):
-                        if sheet_row[headers.index("Item Name")] == row["Item Name"] and sheet_row[headers.index("Outlet")].lower() == outlet_name.lower():
-                            sheet.update_cell(j, action_idx+1, action_val)
-                            sheet.update_cell(j, date_idx+1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                            st.success(f"✅ Action Took updated for {row['Item Name']}")
-                            break
-                    st.session_state.df = pd.DataFrame(sheet.get_all_records())
-                except Exception as e:
-                    st.error(f"❌ Error updating sheet: {e}")
-
-            st.button("Update Action Took", on_click=edit_action, key=f"submit_edit_{i}")
+# ================================
+# VIEW ALL DETAILS PAGE
+# ================================
+elif page == "View All Details":
+    st.subheader("📂 All Details")
+    if not df_outlet.empty:
+        st.dataframe(df_outlet)
+    else:
+        st.info("No records to show.")
