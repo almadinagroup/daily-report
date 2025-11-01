@@ -120,29 +120,14 @@ if search_query:
     df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)]
 
 # ================================
-# REORDER COLUMNS
-# ================================
-# Make sure these columns exist
-cols = df.columns.tolist()
-# Place Action Took first, then Item Name, Barcode, and Details (if they exist)
-ordered_cols = ["Action Took"]
-for c in ["Item Name", "Barcode", "Details"]:
-    if c in cols:
-        ordered_cols.append(c)
-# Add remaining columns except Action Took, Item Name, Barcode, Details
-for c in cols:
-    if c not in ordered_cols:
-        ordered_cols.append(c)
-df = df[ordered_cols]
-
-# ================================
 # EDITABLE ACTION TOOK TABLE
 # ================================
 if df.empty:
     st.info("No records match the filters.")
 else:
     st.markdown(f"**Showing records from {start_date} to {end_date} ({date_column})**")
-
+    
+    # Only Action Took editable
     edited_df = st.data_editor(
         df,
         num_rows="dynamic",
@@ -151,8 +136,6 @@ else:
             "Action Took": st.column_config.TextColumn(
                 "Action Took",
                 help="Edit the action took for this item",
-                width="medium",
-                cell_background_color=("yellow")
             )
         },
         hide_index=True
