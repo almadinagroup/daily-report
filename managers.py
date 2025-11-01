@@ -97,6 +97,8 @@ def load_data():
     # Ensure Action Took Date column exists
     if "Action Took Date" not in df.columns:
         df["Action Took Date"] = ""
+    if "Expiry Date" not in df.columns:
+        df["Expiry Date"] = ""
     return df
 
 st.session_state.df = load_data()
@@ -129,7 +131,7 @@ if st.session_state.page == "Main Dashboard":
 
     if not display_df.empty:
         for i, row in display_df.iterrows():
-            st.write(f"**{row['Item Name']} - Qty: {row['Qty']} - Staff: {row.get('Staff Name','')} - Barcode: {row.get('Barcode','')}**")
+            st.write(f"**{row['Item Name']} - Qty: {row['Qty']} - Staff: {row.get('Staff Name','')} - Barcode: {row.get('Barcode','')} - Expiry: {row.get('Expiry Date','')}**")
             action = st.text_input(
                 "Action Took",
                 value="",
@@ -172,7 +174,7 @@ elif st.session_state.page == "Edit Action Took":
 
     if not edit_df.empty:
         for i, row in edit_df.iterrows():
-            st.write(f"**{row['Item Name']} - Qty: {row['Qty']} - Staff: {row.get('Staff Name','')} - Barcode: {row.get('Barcode','')}**")
+            st.write(f"**{row['Item Name']} - Qty: {row['Qty']} - Staff: {row.get('Staff Name','')} - Barcode: {row.get('Barcode','')} - Expiry: {row.get('Expiry Date','')} - Action Date: {row.get('Action Took Date','')}**")
             action = st.text_input(
                 "Action Took",
                 value=row.get("Action Took", ""),
