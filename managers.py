@@ -104,13 +104,11 @@ if "Form Type" in df.columns:
     selected_form_types = st.sidebar.multiselect("Form Type", form_types, default=form_types)
     df = df[df["Form Type"].isin(selected_form_types)]
 
-# Date filter
+# Date filter (free selection, can select any date)
 if "Date Submitted" in df.columns:
     col1, col2 = st.sidebar.columns(2)
-    min_date = df["Date Submitted"].min()
-    max_date = df["Date Submitted"].max()
-    start_date = col1.date_input("From", min_value=min_date, max_value=max_date, value=min_date)
-    end_date = col2.date_input("To", min_value=min_date, max_value=max_date, value=max_date)
+    start_date = col1.date_input("From", value=datetime.today().date())
+    end_date = col2.date_input("To", value=datetime.today().date())
     df = df[(df["Date Submitted"] >= start_date) & (df["Date Submitted"] <= end_date)]
 
 # Search filter
