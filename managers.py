@@ -135,15 +135,19 @@ if df.empty:
 else:
     st.markdown(f"**Showing records from {start_date} to {end_date} ({date_column})**")
 
-    edited_actions = []
-
-    for i, row in df.iterrows():
-        st.markdown(
-            f"**Item:** {row['Item Name']} | Qty: {row.get('Qty', '')} | Staff: {row.get('Staff Name','')} | Form Type: {row.get('Form Type','')} | Expiry: {row.get('Expiry','')} | Date Submitted: {row.get('Date Submitted','')}"
-        )
-        action_value = st.text_input("Action Took", value=row.get("Action Took",""), key=f"action_{i}")
-        edited_actions.append((i, action_value))
-        st.markdown("---")
+    # Use Streamlit data_editor for editable table
+    edited_df = st.data_editor(
+        df,
+        num_rows="dynamic",
+        use_container_width=True,
+        column_config={
+            "Action Took": st.column_config.TextColumn(
+                "Action Took",
+                help="Edit the action took for this item",
+            )
+        },
+        hide_index=True
+    )
 
     def submit_action():
         try:
@@ -156,11 +160,10 @@ else:
 
             today = datetime.today().strftime("%Y-%m-%d")
 
-            for i, action in edited_actions:
-                row = df.iloc[i]
+            for _, row in edited_df.iterrows():
                 for j, sheet_row in enumerate(all_values[1:], start=2):
                     if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == st.session_state.outlet_name.lower():
-                        sheet.update_cell(j, action_idx + 1, action)
+                        sheet.update_cell(j, action_idx + 1, row["Action Took"])
                         if action_date_idx:
                             sheet.update_cell(j, action_date_idx + 1, today)
                         else:
@@ -173,3 +176,12 @@ else:
             st.error(f"❌ Failed to update: {e}")
 
     st.button("💾 Submit Action Took", on_click=submit_action)
+
+    # Download CSV
+    csv = edited_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download CSV",
+        data=csv,
+        file_name=f"{st.session_state.outlet_name}_data.csv",
+        mime='text/csv'
+    )
