@@ -622,6 +622,6 @@ else:
                 # Submit to Google Sheet
                 if submit_feedback_to_sheets(new_feedback_entry):
                     st.session_state.submitted_feedback.append(new_feedback_entry)
-                    st.success("✅ Feedback submitted successfully to Google Sheets! The form has been cleared.")
+                    st.success("✅ Feedback submitted successfully.")
             else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
