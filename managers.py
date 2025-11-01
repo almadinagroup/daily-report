@@ -94,7 +94,7 @@ if not sheets_connected:
 def load_data():
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
-    # Ensure Action Took Date column exists
+    # Ensure Action Took Date and Expiry Date columns exist
     if "Action Took Date" not in df.columns:
         df["Action Took Date"] = ""
     if "Expiry Date" not in df.columns:
@@ -121,42 +121,52 @@ if search_query:
     ]
 
 # ================================
+# HELPER FUNCTION TO DISPLAY ITEM
+# ================================
+def display_item(row, key_prefix):
+    st.markdown(f"### {row['Item Name']}")  # Big item name
+    st.write(f"**Form Type:** {row.get('Form Type','')}")
+    st.write(f"**Qty:** {row.get('Qty','')}")
+    st.write(f"**Barcode:** {row.get('Barcode','')}")
+    st.write(f"**Staff Name:** {row.get('Staff Name','')}")
+    st.write(f"**Expiry Date:** {row.get('Expiry Date','')}")
+    if st.session_state.page == "Edit Action Took":
+        st.write(f"**Action Took Date:** {row.get('Action Took Date','')}")
+    action_taken = st.text_input(
+        "Action Took",
+        value=row.get("Action Took","") if st.session_state.page == "Edit Action Took" else "",
+        key=f"{key_prefix}_{row.name}"
+    )
+    submit_button = st.button(
+        "Submit" if st.session_state.page=="Main Dashboard" else "Update",
+        key=f"submit_{key_prefix}_{row.name}"
+    )
+    return action_taken, submit_button
+
+# ================================
 # MAIN DASHBOARD
 # ================================
 if st.session_state.page == "Main Dashboard":
     st.title(f"📊 Main Dashboard - {outlet_name}")
-
-    # Only show rows where Action Took is empty
-    display_df = filtered_df[filtered_df["Action Took"].isnull() | (filtered_df["Action Took"] == "")]
+    display_df = filtered_df[filtered_df["Action Took"].isnull() | (filtered_df["Action Took"]=="")]
 
     if not display_df.empty:
         for i, row in display_df.iterrows():
-            st.write(f"**{row['Item Name']} - Qty: {row['Qty']} - Staff: {row.get('Staff Name','')} - Barcode: {row.get('Barcode','')} - Expiry: {row.get('Expiry Date','')}**")
-            action = st.text_input(
-                "Action Took",
-                value="",
-                key=f"action_main_{i}"
-            )
-            submit_button = st.button("Submit Action Took", key=f"submit_main_{i}")
-
-            if submit_button and action.strip() != "":
-                # Update Google Sheet
+            action, submitted = display_item(row, "main")
+            if submitted and action.strip()!="":
                 all_values = sheet.get_all_values()
                 headers = all_values[0]
                 action_idx = headers.index("Action Took")
-                date_idx = headers.index("Action Took Date") if "Action Took Date" in headers else None
                 outlet_idx = headers.index("Outlet")
                 item_idx = headers.index("Item Name")
-
-                # Find row in sheet
+                date_idx = headers.index("Action Took Date") if "Action Took Date" in headers else None
                 for j, sheet_row in enumerate(all_values[1:], start=2):
-                    if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == outlet_name.lower():
-                        sheet.update_cell(j, action_idx + 1, action)
+                    if sheet_row[item_idx]==row["Item Name"] and sheet_row[outlet_idx].lower()==outlet_name.lower():
+                        sheet.update_cell(j, action_idx+1, action)
                         if date_idx is None:
-                            # Add Action Took Date column if missing
                             sheet.update_cell(1, len(headers)+1, "Action Took Date")
                             date_idx = len(headers)
-                        sheet.update_cell(j, date_idx + 1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                        sheet.update_cell(j, date_idx+1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                         st.success(f"✅ Action Took updated for {row['Item Name']}")
                         break
                 st.experimental_rerun()
@@ -168,34 +178,23 @@ if st.session_state.page == "Main Dashboard":
 # ================================
 elif st.session_state.page == "Edit Action Took":
     st.title(f"✏️ Edit Action Took - {outlet_name}")
-
-    # Only show rows where Action Took is not empty
-    edit_df = filtered_df[filtered_df["Action Took"].notnull() & (filtered_df["Action Took"] != "")]
+    edit_df = filtered_df[filtered_df["Action Took"].notnull() & (filtered_df["Action Took"]!="")]
 
     if not edit_df.empty:
         for i, row in edit_df.iterrows():
-            st.write(f"**{row['Item Name']} - Qty: {row['Qty']} - Staff: {row.get('Staff Name','')} - Barcode: {row.get('Barcode','')} - Expiry: {row.get('Expiry Date','')} - Action Date: {row.get('Action Took Date','')}**")
-            action = st.text_input(
-                "Action Took",
-                value=row.get("Action Took", ""),
-                key=f"action_edit_{i}"
-            )
-            submit_button = st.button("Update Action Took", key=f"submit_edit_{i}")
-
-            if submit_button and action.strip() != "":
-                # Update Google Sheet
+            action, submitted = display_item(row, "edit")
+            if submitted and action.strip()!="":
                 all_values = sheet.get_all_values()
                 headers = all_values[0]
                 action_idx = headers.index("Action Took")
-                date_idx = headers.index("Action Took Date") if "Action Took Date" in headers else None
                 outlet_idx = headers.index("Outlet")
                 item_idx = headers.index("Item Name")
-
+                date_idx = headers.index("Action Took Date") if "Action Took Date" in headers else None
                 for j, sheet_row in enumerate(all_values[1:], start=2):
-                    if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == outlet_name.lower():
-                        sheet.update_cell(j, action_idx + 1, action)
+                    if sheet_row[item_idx]==row["Item Name"] and sheet_row[outlet_idx].lower()==outlet_name.lower():
+                        sheet.update_cell(j, action_idx+1, action)
                         if date_idx is not None:
-                            sheet.update_cell(j, date_idx + 1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                            sheet.update_cell(j, date_idx+1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                         st.success(f"✅ Action Took updated for {row['Item Name']}")
                         break
                 st.experimental_rerun()
