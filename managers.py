@@ -7,7 +7,7 @@ from datetime import datetime
 # ================================
 # PAGE CONFIG
 # ================================
-st.set_page_config(page_title="Manager Dashboard", layout="wide")
+st.set_page_config(page_title="Outlet Manager Dashboard", layout="wide")
 
 # ================================
 # OUTLET PASSWORDS
@@ -47,6 +47,9 @@ except Exception as e:
     st.error(f"⚠️ Google Sheets connection error: {e}")
     sheets_connected = False
 
+if not sheets_connected:
+    st.stop()
+
 # ================================
 # SESSION STATE INIT
 # ================================
@@ -54,8 +57,6 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "outlet_name" not in st.session_state:
     st.session_state.outlet_name = None
-if "df" not in st.session_state:
-    st.session_state.df = pd.DataFrame()
 
 # ================================
 # LOGIN PAGE
@@ -79,130 +80,53 @@ if not st.session_state.logged_in:
 # ================================
 # MANAGER DASHBOARD
 # ================================
-st.title(f"📊 Manager Dashboard - {st.session_state.outlet_name}")
-
-if not sheets_connected:
-    st.stop()
+st.title(f"📋 Manager Dashboard - {st.session_state.outlet_name}")
 
 # Load data from Google Sheets
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
-st.session_state.df = df.copy()
 
-# Ensure date columns are datetime
-if 'Date' in df.columns:
-    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-if 'Expiry' in df.columns:
-    df['Expiry'] = pd.to_datetime(df['Expiry'], errors='coerce')
+# Filter only for the logged-in outlet
+df = df[df["Outlet"].str.lower() == st.session_state.outlet_name.lower()]
 
-# ================================
-# Sidebar Navigation
-# ================================
-st.sidebar.header("Navigation")
-page = st.sidebar.radio("Go to", ["Main Dashboard", "Edit Dashboard", "View All Details"])
+# Convert 'Date Submitted' to datetime.date
+if "Date Submitted" in df.columns:
+    df["Date Submitted"] = pd.to_datetime(df["Date Submitted"], errors='coerce').dt.date
 
 # ================================
-# FILTERS
+# SIDEBAR FILTERS
 # ================================
 st.sidebar.header("Filters")
-# Form Type
-form_types = df["Form Type"].dropna().unique().tolist()
-selected_form_types = st.sidebar.multiselect("Form Type", form_types, default=form_types)
 
-# Date Range Filter
-if 'Date' in df.columns:
-    start_date, end_date = st.sidebar.date_input(
-        "Select Date Range",
-        value=[df['Date'].min(), df['Date'].max()]
-    )
-else:
-    start_date = end_date = None
+# Form Type filter
+if "Form Type" in df.columns:
+    form_types = df["Form Type"].dropna().unique().tolist()
+    selected_form_types = st.sidebar.multiselect("Form Type", form_types, default=form_types)
+    df = df[df["Form Type"].isin(selected_form_types)]
 
-# Search
-search_query = st.sidebar.text_input("Search")
+# Date filter
+if "Date Submitted" in df.columns:
+    col1, col2 = st.sidebar.columns(2)
+    start_date = col1.date_input("From", min(df["Date Submitted"].dropna(), default=datetime.today().date()))
+    end_date = col2.date_input("To", max(df["Date Submitted"].dropna(), default=datetime.today().date()))
+    df = df[(df["Date Submitted"] >= start_date) & (df["Date Submitted"] <= end_date)]
 
-# Filter by outlet for main & edit dashboards
-outlet_name = st.session_state.outlet_name
-df_outlet = df[df["Outlet"].str.lower() == outlet_name.lower()]
-
-# Apply Form Type filter
-df_outlet = df_outlet[df_outlet["Form Type"].isin(selected_form_types)]
-
-# Apply Date filter
-if start_date and end_date and 'Date' in df_outlet.columns:
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
-    df_outlet = df_outlet[(df_outlet['Date'] >= start_date) & (df_outlet['Date'] <= end_date)]
-
-# Apply Search
+# Search filter
+search_query = st.sidebar.text_input("Search in table")
 if search_query:
-    df_outlet = df_outlet[df_outlet.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)]
+    df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False, na=False).any(), axis=1)]
 
 # ================================
-# MAIN DASHBOARD (Action Took empty)
+# DISPLAY DATA
 # ================================
-if page == "Main Dashboard":
-    st.subheader("📝 Items Pending Action Took")
-    main_df = df_outlet[df_outlet["Action Took"].isna() | (df_outlet["Action Took"] == "")]
-
-    if not main_df.empty:
-        for i, row in main_df.iterrows():
-            st.markdown(f"### {row['Item Name']} - Qty: {row['Qty']}")
-            st.markdown(f"**Staff:** {row.get('Staff Name', '')} | **Form Type:** {row.get('Form Type', '')} | **Expiry:** {row.get('Expiry', 'N/A')}")
-            action_input = st.text_input(
-                "Action Took",
-                value="",
-                key=f"action_{i}"
-            )
-
-            # Submit Button
-            def submit_action(idx=i, action_val=action_input):
-                try:
-                    all_values = sheet.get_all_values()
-                    headers = all_values[0]
-                    action_idx = headers.index("Action Took")
-                    date_idx = None
-                    if "Action Took Date" in headers:
-                        date_idx = headers.index("Action Took Date")
-                    else:
-                        # Add new column for date if not exists
-                        sheet.update_cell(1, len(headers)+1, "Action Took Date")
-                        date_idx = len(headers)
-                    
-                    outlet_idx = headers.index("Outlet")
-                    item_idx = headers.index("Item Name")
-
-                    # Update Google Sheet
-                    for j, sheet_row in enumerate(all_values[1:], start=2):
-                        if sheet_row[item_idx] == row["Item Name"] and sheet_row[outlet_idx].lower() == outlet_name.lower():
-                            sheet.update_cell(j, action_idx+1, action_val)
-                            sheet.update_cell(j, date_idx+1, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                    st.success(f"✅ Action Took updated for {row['Item Name']}")
-                except Exception as e:
-                    st.error(f"❌ Failed to update: {e}")
-
-            st.button("Submit Action Took", on_click=submit_action, key=f"submit_{i}")
-            st.markdown("---")
-    else:
-        st.info("No pending items for your outlet.")
-
-# ================================
-# EDIT DASHBOARD (Action Took filled)
-# ================================
-elif page == "Edit Dashboard":
-    st.subheader("✏️ Items with Action Took")
-    edit_df = df_outlet[~df_outlet["Action Took"].isna() & (df_outlet["Action Took"] != "")]
-    if not edit_df.empty:
-        st.dataframe(edit_df)
-    else:
-        st.info("No items with Action Took yet.")
-
-# ================================
-# VIEW ALL DETAILS PAGE
-# ================================
-elif page == "View All Details":
-    st.subheader("📂 All Details")
-    if not df_outlet.empty:
-        st.dataframe(df_outlet)
-    else:
-        st.info("No records to show.")
+if df.empty:
+    st.info("No records match the filters.")
+else:
+    for i, row in df.iterrows():
+        st.markdown(f"### {row.get('Item Name', '')}  |  Qty: {row.get('Qty', '')}")
+        st.markdown(f"- **Form Type:** {row.get('Form Type', '')}")
+        st.markdown(f"- **Staff Name:** {row.get('Staff Name', '')}")
+        st.markdown(f"- **Expiry Date:** {row.get('Expiry', 'N/A')}")
+        st.markdown(f"- **Action Took:** {row.get('Action Took', '')}")
+        st.markdown(f"- **Date Submitted:** {row.get('Date Submitted', '')}")
+        st.markdown("---")
