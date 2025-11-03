@@ -576,14 +576,14 @@ else:
     else:
         outlet_name = st.session_state.selected_outlet
         st.title("📝 Kindly rate your shopping experience with us")
-        st.markdown("---")
+        st.markdown("----")
         
         # Inject the script to change the mobile number field's inputmode
         inject_numeric_keyboard_script("Mobile Number") 
 
         with st.form("feedback_form", clear_on_submit=True):
             name = st.text_input("Customer Name")
-            mobile_number = st.text_input("Mobile Number (Optional)", placeholder="e.g., +971501234567")
+            mobile_number = st.text_input("Mobile Number (Optional)", placeholder="e.g., 05726000...")
             
             st.markdown("🌟 **Rate Our Outlet**")
             
