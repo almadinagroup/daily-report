@@ -23,7 +23,7 @@ outlet_passwords = {
     "Jais": "jais123",
     "Sabah": "sabah123",
     "Sahat": "sahat123",
-    "Shams salem": "salem123",
+    "Shams salem": "shams123",
     "Shams Liwan": "liwan123",
     "Superstore": "super123",
     "Tay Tay": "taytay123",
