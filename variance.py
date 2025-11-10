@@ -626,14 +626,24 @@ else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
 hide_right_style = """
     <style>
-    /* Hide hamburger menu (top-right) */
-    #MainMenu {visibility: hidden;}
-    
-    /* Hide Streamlit footer (bottom-right) */
-    footer {visibility: hidden;}
-    
-    /* Keep header visible */
-    header {visibility: visible;}
+    /* Overlay that covers the right half of the page */
+    .main > div:nth-child(1) {
+        position: relative;
+    }
+    .main > div:nth-child(1)::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 50%; /* start from center */
+        width: 50%; /* cover right half */
+        height: 100%;
+        background-color: white; /* same as page background */
+        z-index: 9999;
+        pointer-events: none; /* still allow clicks on left side */
+    }
     </style>
 """
+
 st.markdown(hide_right_style, unsafe_allow_html=True)
+st.write("This is the left half visible. Right half is hidden.")
+
