@@ -86,11 +86,11 @@ st.title(f"📋 Manager Dashboard - {st.session_state.outlet_name}")
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 
-# Filter only for outlet users
+# Filter for outlet users (not logistics)
 if st.session_state.outlet_name.lower() != "logistics":
     df = df[df["Outlet"].str.lower() == st.session_state.outlet_name.lower()]
 
-# Convert dates
+# Convert dates to datetime
 if "Date Submitted" in df.columns:
     df["Date Submitted"] = pd.to_datetime(df["Date Submitted"], errors='coerce').dt.date
 if "Expiry" in df.columns:
@@ -136,12 +136,10 @@ else:
 
     # Editable columns based on user
     if st.session_state.outlet_name.lower() == "logistics":
-        # Logistics can edit Supplier Name
         editable_cols = {
             "Supplier Name": st.column_config.TextColumn("Supplier Name", help="Edit supplier name"),
         }
     else:
-        # Outlets can edit only Action Took
         editable_cols = {
             "Action Took": st.column_config.TextColumn("Action Took", help="Edit action took for this item"),
         }
@@ -155,7 +153,7 @@ else:
     )
 
     # ================================
-    # SAVE BUTTONS
+    # SAVE BUTTON WITH BATCH UPDATE
     # ================================
     def save_changes():
         try:
@@ -165,25 +163,53 @@ else:
             item_idx = headers.index("Item Name")
 
             today_date = datetime.now().strftime("%Y-%m-%d")
+            batch_updates = []  # collect updates here
 
             if st.session_state.outlet_name.lower() == "logistics":
                 supplier_idx = headers.index("Supplier Name")
+
                 for i, row in edited_df.iterrows():
                     for j, sheet_row in enumerate(all_values[1:], start=2):
                         if sheet_row[item_idx] == row["Item Name"]:
-                            sheet.update_cell(j, supplier_idx + 1, row["Supplier Name"])
-                st.success("✅ Supplier Name updated successfully!")
+                            cell_ref = gspread.utils.rowcol_to_a1(j, supplier_idx + 1)
+                            batch_updates.append({
+                                "range": cell_ref,
+                                "values": [[row["Supplier Name"]]]
+                            })
+
+                if batch_updates:
+                    sheet.batch_update([{"range": u["range"], "values": u["values"]} for u in batch_updates])
+                    st.success("✅ Supplier Name updated successfully!")
+                else:
+                    st.info("No changes to update.")
+
             else:
                 action_idx = headers.index("Action Took")
                 date_idx = headers.index("Action Took Date") if "Action Took Date" in headers else None
+
                 for i, row in edited_df.iterrows():
                     for j, sheet_row in enumerate(all_values[1:], start=2):
                         if (sheet_row[item_idx] == row["Item Name"] and
                             sheet_row[outlet_idx].lower() == st.session_state.outlet_name.lower()):
-                            sheet.update_cell(j, action_idx + 1, row["Action Took"])
+                            # Action Took
+                            action_cell = gspread.utils.rowcol_to_a1(j, action_idx + 1)
+                            batch_updates.append({
+                                "range": action_cell,
+                                "values": [[row["Action Took"]]]
+                            })
+                            # Action Took Date
                             if date_idx is not None:
-                                sheet.update_cell(j, date_idx + 1, today_date)
-                st.success("✅ Action Took updated successfully!")
+                                date_cell = gspread.utils.rowcol_to_a1(j, date_idx + 1)
+                                batch_updates.append({
+                                    "range": date_cell,
+                                    "values": [[today_date]]
+                                })
+
+                if batch_updates:
+                    sheet.batch_update([{"range": u["range"], "values": u["values"]} for u in batch_updates])
+                    st.success("✅ Action Took updated successfully!")
+                else:
+                    st.info("No changes to update.")
 
         except Exception as e:
             st.error(f"❌ Failed to update: {e}")
