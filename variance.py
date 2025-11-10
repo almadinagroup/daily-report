@@ -624,26 +624,3 @@ else:
                     st.success("✅ Feedback submitted successfully.")
             else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
-hide_st_style = """
-    <style>
-    /* Hide Streamlit main menu and footer */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-
-    /* Hide right side of top header (GitHub, Settings, etc.) */
-    [data-testid="stToolbar"] div:first-child div:last-child {
-        display: none;
-    }
-
-    /* Hide Streamlit GitHub decoration icon */
-    [data-testid="stDecoration"] {
-        display: none;
-    }
-
-    /* Optional: Adjust layout to keep header tidy */
-    [data-testid="stHeader"] {
-        background-color: white;
-    }
-    </style>
-"""
-st.markdown(hide_st_style, unsafe_allow_html=True)
