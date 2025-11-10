@@ -624,17 +624,3 @@ else:
                     st.success("✅ Feedback submitted successfully.")
             else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
-
-
-hide_settings_only = """
-    <style>
-    /* Hide only the Settings button */
-    button[aria-label="Settings"] {
-        visibility: hidden;
-    }
-</style>
-"""
-
-st.markdown(hide_settings_only, unsafe_allow_html=True)
-
-st.write("Settings button hidden. Other top-right icons remain visible.")
