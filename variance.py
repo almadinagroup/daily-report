@@ -624,3 +624,21 @@ else:
                     st.success("✅ Feedback submitted successfully.")
             else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
+custom_css = """
+<style>
+/* Hide unwanted top-right items */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+[data-testid="stDecoration"] {display: none;}
+
+/* Center the sidebar toggle button */
+[data-testid="collapsedControl"] {
+    position: absolute;
+    left: 50% !important;
+    transform: translateX(-50%);
+    top: 10px; /* adjust vertical position */
+    z-index: 9999;
+}
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
