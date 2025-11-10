@@ -625,24 +625,23 @@ else:
             else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
 
-hide_right_style = """
+
+hide_right_elements = """
     <style>
-    /* Hide the hamburger menu */
+    /* Hide only the top-right menu */
     #MainMenu {visibility: hidden;}
     
-    /* Hide the footer */
+    /* Hide only the footer */
     footer {visibility: hidden;}
     
-    /* Hide right-side top bar (if present) */
-    header > div:nth-child(2) {visibility: hidden;}
+    /* Keep the main header visible */
+    header {visibility: visible;}
     
-    /* Optionally, hide right-side panel (like filters, buttons) */
-    [data-testid="stVerticalBlock"] {
-        display: none;
-    }
-    </style>
+    /* Hide right-aligned Streamlit icons (like settings/report) */
+    header div[role="toolbar"] {visibility: hidden;}
+</style>
 """
 
-st.markdown(hide_right_style, unsafe_allow_html=True)
+st.markdown(hide_right_elements, unsafe_allow_html=True)
 
-st.write("Left side content visible. Right-side elements hidden.")
+st.write("Main content visible on the left. Right-side UI elements hidden.")
