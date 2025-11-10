@@ -10,28 +10,38 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
 # ==========================================
-# CUSTOM CSS FOR MOVING THE '>>' SIDEBAR OPEN ICON TO BOTTOM LEFT (UPDATED & CORRECTED)
+# CUSTOM CSS FOR MOVING THE '>>' SIDEBAR OPEN ICON TO BOTTOM LEFT (FINAL FIX)
 # ==========================================
 CUSTOM_CLOSED_SIDEBAR_CSS = """
 <style>
-/* This targets the Streamlit element containing the '>>' icon (stSidebarCollapseButton) 
-    and uses fixed positioning to pin it to the bottom-left corner of the screen.
-*/
+/* 1. Target the button element containing the '>>' icon */
 [data-testid="stSidebarCollapseButton"] {
-    position: fixed;
-    /* Pin it 10 pixels up from the bottom edge */
-    bottom: 10px; 
-    /* Pin it 10 pixels in from the left edge */
-    left: 10px;   
-    z-index: 9999; 
+    /* Critical: Use fixed positioning to stick it to the viewport */
+    position: fixed !important;
+    
+    /* Pin to the left edge, overriding any default right-side positioning */
+    left: 10px !important;   
+    
+    /* Pin 10 pixels up from the bottom edge */
+    bottom: 10px !important; 
+    
+    /* Ensure it appears above everything else */
+    z-index: 9999 !important; 
+    
+    /* Reset top/right to ensure the fixed positioning is respected */
+    top: auto !important;
+    right: auto !important;
 }
-/* Resetting any residual centering logic from the header's first child element */
-div.stApp > header > div:first-child {
-    height: auto; 
-    bottom: auto;
-    position: static; /* Prevent unwanted fixed behavior on this container */
-    pointer-events: none;
-    display: none; /* Hide the whole container if it causes issues, but keep the button visible via fixed pos */
+
+/* 2. Hide the original header component to prevent the icon from appearing twice 
+   (a common issue when repositioning fixed elements in Streamlit) */
+header {
+    visibility: hidden;
+    height: 0;
+}
+header [data-testid="stSidebarCollapseButton"] {
+    visibility: visible;
+    height: auto;
 }
 </style>
 """
