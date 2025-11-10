@@ -624,26 +624,25 @@ else:
                     st.success("✅ Feedback submitted successfully.")
             else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
+
 hide_right_style = """
     <style>
-    /* Overlay that covers the right half of the page */
-    .main > div:nth-child(1) {
-        position: relative;
-    }
-    .main > div:nth-child(1)::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 50%; /* start from center */
-        width: 50%; /* cover right half */
-        height: 100%;
-        background-color: white; /* same as page background */
-        z-index: 9999;
-        pointer-events: none; /* still allow clicks on left side */
+    /* Hide the hamburger menu */
+    #MainMenu {visibility: hidden;}
+    
+    /* Hide the footer */
+    footer {visibility: hidden;}
+    
+    /* Hide right-side top bar (if present) */
+    header > div:nth-child(2) {visibility: hidden;}
+    
+    /* Optionally, hide right-side panel (like filters, buttons) */
+    [data-testid="stVerticalBlock"] {
+        display: none;
     }
     </style>
 """
 
 st.markdown(hide_right_style, unsafe_allow_html=True)
-st.write("This is the left half visible. Right half is hidden.")
 
+st.write("Left side content visible. Right-side elements hidden.")
