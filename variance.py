@@ -624,3 +624,16 @@ else:
                     st.success("✅ Feedback submitted successfully.")
             else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
+hide_right_style = """
+    <style>
+    /* Hide hamburger menu (top-right) */
+    #MainMenu {visibility: hidden;}
+    
+    /* Hide Streamlit footer (bottom-right) */
+    footer {visibility: hidden;}
+    
+    /* Keep header visible */
+    header {visibility: visible;}
+    </style>
+"""
+st.markdown(hide_right_style, unsafe_allow_html=True)
