@@ -215,3 +215,11 @@ else:
             st.error(f"❌ Failed to update: {e}")
 
     st.button("💾 Submit Changes", on_click=save_changes)
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
