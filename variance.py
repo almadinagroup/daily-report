@@ -660,24 +660,3 @@ else:
                     st.success("✅ Feedback submitted successfully.")
             else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
-hide_menu_footer_style = """
-    <style>
-    /* Hides the Streamlit 'hamburger' menu (three dots) */
-    #MainMenu {
-        visibility: hidden;
-    }
-
-    /* Hides the 'Made with Streamlit' footer */
-    footer {
-        visibility: hidden;
-    }
-
-    /* Target to hide the entire toolbar container if visibility:hidden on #MainMenu isn't enough */
-    /* Use this alternative if the above doesn't work perfectly on newer versions */
-    /* [data-testid="stToolbar"] {
-        visibility: hidden !important;
-    } */
-
-    </style>
-    """
-st.markdown(hide_menu_footer_style, unsafe_allow_html=True)
