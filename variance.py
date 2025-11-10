@@ -625,10 +625,12 @@ else:
             else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
 hide_st_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            </style>
-            """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    [data-testid="stToolbar"] {display: none;}
+    [data-testid="stDecoration"] {display: none;}
+    </style>
+"""
 st.markdown(hide_st_style, unsafe_allow_html=True)
+
