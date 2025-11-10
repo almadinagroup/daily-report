@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
+import gspread 
+from google.oauth2.service_account import Credentials 
 
 # ==========================================
 # PAGE CONFIG
@@ -10,44 +10,7 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
 # ==========================================
-# CUSTOM CSS FOR MOVING THE '>>' SIDEBAR OPEN ICON TO BOTTOM LEFT (FINAL FIX)
-# ==========================================
-CUSTOM_CLOSED_SIDEBAR_CSS = """
-<style>
-/* 1. Target the button element containing the '>>' icon */
-[data-testid="stSidebarCollapseButton"] {
-    /* Critical: Use fixed positioning to stick it to the viewport */
-    position: fixed !important;
-    
-    /* Pin to the left edge, overriding any default right-side positioning */
-    left: 10px !important;   
-    
-    /* Pin 10 pixels up from the bottom edge */
-    bottom: 10px !important; 
-    
-    /* Ensure it appears above everything else */
-    z-index: 9999 !important; 
-    
-    /* Reset top/right to ensure the fixed positioning is respected */
-    top: auto !important;
-    right: auto !important;
-}
-
-/* 2. Hide the original header component to prevent the icon from appearing twice 
-   (a common issue when repositioning fixed elements in Streamlit) */
-header {
-    visibility: hidden;
-    height: 0;
-}
-header [data-testid="stSidebarCollapseButton"] {
-    visibility: visible;
-    height: auto;
-}
-</style>
-"""
-st.markdown(CUSTOM_CLOSED_SIDEBAR_CSS, unsafe_allow_html=True)
-# ==========================================
-# GOOGLE SHEETS SETUP (FIXED U+00A0 ERROR HERE)
+# GOOGLE SHEETS SETUP (NEW Section)
 # ==========================================
 # 1. Configuration - REPLACE WITH YOUR SHEET URL
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1MK5WDETIFCRes-c8X16JjrNdrlEpHwv9vHvb96VVtM0/edit?gid=1883887055#gid=1883887055"
@@ -57,7 +20,7 @@ FEEDBACK_SHEET_NAME = "Feedback"
 # 2. Authorization
 try:
     scope = ["https://spreadsheets.google.com/feeds",
-             "https://www.googleapis.com/auth/drive"] # ERROR U+00A0 CORRECTED HERE
+             "https://www.googleapis.com/auth/drive"]
 
     # Load credentials from Streamlit Secrets (same as your first app)
     creds = Credentials.from_service_account_info(
@@ -77,7 +40,7 @@ except Exception as e:
     sheets_connected = False
 
 # ==========================================
-# CUSTOM STYLES (Existing - Cleaned U+00A0 in comments)
+# CUSTOM STYLES (Existing - Removed custom radio CSS for cleaner st.feedback)
 # ==========================================
 # NOTE: The CUSTOM_RATING_CSS is now defined but will not be used 
 # when st.feedback is implemented, but kept here for reference if you switch back.
@@ -214,10 +177,10 @@ password = "123123"
 
 # Initialize session state variables (Existing)
 for key in ["logged_in", "selected_outlet", "submitted_items",
-            "barcode_value", "item_name_input", "supplier_input", 
-            "temp_item_name_manual", "temp_supplier_manual",
-            "lookup_data", "submitted_feedback", "barcode_found",
-            "staff_name"]: 
+             "barcode_value", "item_name_input", "supplier_input", 
+             "temp_item_name_manual", "temp_supplier_manual",
+             "lookup_data", "submitted_feedback", "barcode_found",
+             "staff_name"]: 
     
     if key not in st.session_state:
         if key in ["submitted_items", "submitted_feedback"]:
@@ -355,7 +318,7 @@ def submit_all_items_to_sheets():
     try:
         current_headers = items_worksheet.row_values(1)
         if not current_headers:
-              items_worksheet.append_row(headers)
+             items_worksheet.append_row(headers)
     except Exception as e:
         st.error(f"Error checking/writing headers to '{ITEMS_SHEET_NAME}': {e}")
         return
@@ -389,7 +352,7 @@ def submit_feedback_to_sheets(feedback_entry):
     try:
         current_headers = feedback_worksheet.row_values(1)
         if not current_headers:
-              feedback_worksheet.append_row(headers)
+             feedback_worksheet.append_row(headers)
     except Exception as e:
         st.error(f"Error checking/writing headers to '{FEEDBACK_SHEET_NAME}': {e}")
         return False
@@ -483,25 +446,25 @@ else:
         
         # --- 2b. Manual Entry Fallback (Existing) ---
         if st.session_state.barcode_value.strip() and not st.session_state.barcode_found:
-              st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
-              col_manual_name, col_manual_supplier = st.columns(2)
-              with col_manual_name:
-                  st.text_input(
-                      "Item Name (Manual)", 
-                      value=st.session_state.item_name_input, 
-                      key="temp_item_name_manual", 
-                      on_change=update_item_name_state
-                  )
-              with col_manual_supplier:
-                  st.text_input(
-                      "Supplier Name (Manual)", 
-                      value=st.session_state.supplier_input, 
-                      key="temp_supplier_manual", 
-                      on_change=update_supplier_state
-                  )
+             st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
+             col_manual_name, col_manual_supplier = st.columns(2)
+             with col_manual_name:
+                 st.text_input(
+                     "Item Name (Manual)", 
+                     value=st.session_state.item_name_input, 
+                     key="temp_item_name_manual", 
+                     on_change=update_item_name_state
+                 )
+             with col_manual_supplier:
+                 st.text_input(
+                     "Supplier Name (Manual)", 
+                     value=st.session_state.supplier_input, 
+                     key="temp_supplier_manual", 
+                     on_change=update_supplier_state
+                 )
 
         if st.session_state.barcode_value.strip():
-              st.markdown("---") 
+             st.markdown("---") 
 
 
         # --- 3. Start of the Main Item Entry Form (Existing) ---
@@ -548,8 +511,8 @@ else:
             final_staff_name = st.session_state.staff_name 
 
             if not st.session_state.barcode_value.strip():
-                  st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
-                  st.rerun() 
+                 st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
+                 st.rerun() 
             
             if not final_staff_name.strip():
                 st.toast("❌ Please enter your Staff Name before adding to the list.", icon="❌")
@@ -570,7 +533,7 @@ else:
             )
             
             if success:
-                  st.rerun()
+                 st.rerun()
 
 
         # Displaying and managing the list
