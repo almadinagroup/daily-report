@@ -628,7 +628,6 @@ hide_st_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    [data-testid="stToolbar"] {display: none;}
     [data-testid="stDecoration"] {display: none;}
     </style>
 """
