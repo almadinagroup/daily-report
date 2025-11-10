@@ -1,14 +1,50 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import gspread 
-from google.oauth2.service_account import Credentials 
+import gspread
+from google.oauth2.service_account import Credentials
 
 # ==========================================
 # PAGE CONFIG
 # ==========================================
 st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
+# ==========================================
+# CUSTOM CSS FOR CENTERING CLOSED SIDEBAR ICON (NEW Addition)
+# ==========================================
+# This CSS targets the element containing the closed sidebar icon (the triple bar).
+# By setting 'margin-top' to 'auto' and 'margin-bottom' to 'auto' on its parent container,
+# we can vertically center it within the entire viewport height when the sidebar is closed.
+CUSTOM_CLOSED_SIDEBAR_CSS = """
+<style>
+/* Target the div that holds the main content and the closed sidebar button */
+div.stApp > header > div:first-child {
+    display: flex;
+    align-items: center; /* Vertically center */
+    justify-content: center; /* Horizontally center */
+    height: 100vh; /* Make the container take up the full viewport height */
+    position: fixed; /* Keep it fixed */
+    top: 0;
+    left: 0;
+    width: 2.5rem; /* Match the expected width of the closed sidebar button area */
+    z-index: 1000;
+    pointer-events: none; /* Allows clicks to pass through to the button */
+}
+
+/* Target the actual closed sidebar button element (triple bar icon) */
+/* The closed icon is usually the only item in that header div when the sidebar is closed */
+div[data-testid="stSidebarCloseButton"] {
+    margin: auto; /* This line is key for centering */
+    pointer-events: auto; /* Re-enable clicks on the button itself */
+}
+
+/* Ensure the open sidebar menu's position doesn't conflict (less critical but good practice) */
+div[data-testid="stSidebar"] {
+    z-index: 1001; /* Ensure sidebar is above the centering container */
+}
+</style>
+"""
+st.markdown(CUSTOM_CLOSED_SIDEBAR_CSS, unsafe_allow_html=True)
 # ==========================================
 # GOOGLE SHEETS SETUP (NEW Section)
 # ==========================================
@@ -318,7 +354,7 @@ def submit_all_items_to_sheets():
     try:
         current_headers = items_worksheet.row_values(1)
         if not current_headers:
-             items_worksheet.append_row(headers)
+              items_worksheet.append_row(headers)
     except Exception as e:
         st.error(f"Error checking/writing headers to '{ITEMS_SHEET_NAME}': {e}")
         return
@@ -352,7 +388,7 @@ def submit_feedback_to_sheets(feedback_entry):
     try:
         current_headers = feedback_worksheet.row_values(1)
         if not current_headers:
-             feedback_worksheet.append_row(headers)
+              feedback_worksheet.append_row(headers)
     except Exception as e:
         st.error(f"Error checking/writing headers to '{FEEDBACK_SHEET_NAME}': {e}")
         return False
@@ -446,25 +482,25 @@ else:
         
         # --- 2b. Manual Entry Fallback (Existing) ---
         if st.session_state.barcode_value.strip() and not st.session_state.barcode_found:
-             st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
-             col_manual_name, col_manual_supplier = st.columns(2)
-             with col_manual_name:
-                 st.text_input(
-                     "Item Name (Manual)", 
-                     value=st.session_state.item_name_input, 
-                     key="temp_item_name_manual", 
-                     on_change=update_item_name_state
-                 )
-             with col_manual_supplier:
-                 st.text_input(
-                     "Supplier Name (Manual)", 
-                     value=st.session_state.supplier_input, 
-                     key="temp_supplier_manual", 
-                     on_change=update_supplier_state
-                 )
+              st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
+              col_manual_name, col_manual_supplier = st.columns(2)
+              with col_manual_name:
+                  st.text_input(
+                      "Item Name (Manual)", 
+                      value=st.session_state.item_name_input, 
+                      key="temp_item_name_manual", 
+                      on_change=update_item_name_state
+                  )
+              with col_manual_supplier:
+                  st.text_input(
+                      "Supplier Name (Manual)", 
+                      value=st.session_state.supplier_input, 
+                      key="temp_supplier_manual", 
+                      on_change=update_supplier_state
+                  )
 
         if st.session_state.barcode_value.strip():
-             st.markdown("---") 
+              st.markdown("---") 
 
 
         # --- 3. Start of the Main Item Entry Form (Existing) ---
@@ -511,8 +547,8 @@ else:
             final_staff_name = st.session_state.staff_name 
 
             if not st.session_state.barcode_value.strip():
-                 st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
-                 st.rerun() 
+                  st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
+                  st.rerun() 
             
             if not final_staff_name.strip():
                 st.toast("❌ Please enter your Staff Name before adding to the list.", icon="❌")
@@ -533,7 +569,7 @@ else:
             )
             
             if success:
-                 st.rerun()
+                  st.rerun()
 
 
         # Displaying and managing the list
