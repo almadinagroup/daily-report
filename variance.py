@@ -626,22 +626,15 @@ else:
                 st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
 
 
-hide_right_elements = """
+hide_settings_only = """
     <style>
-    /* Hide only the top-right menu */
-    #MainMenu {visibility: hidden;}
-    
-    /* Hide only the footer */
-    footer {visibility: hidden;}
-    
-    /* Keep the main header visible */
-    header {visibility: visible;}
-    
-    /* Hide right-aligned Streamlit icons (like settings/report) */
-    header div[role="toolbar"] {visibility: hidden;}
+    /* Hide only the Settings button */
+    button[aria-label="Settings"] {
+        visibility: hidden;
+    }
 </style>
 """
 
-st.markdown(hide_right_elements, unsafe_allow_html=True)
+st.markdown(hide_settings_only, unsafe_allow_html=True)
 
-st.write("Main content visible on the left. Right-side UI elements hidden.")
+st.write("Settings button hidden. Other top-right icons remain visible.")
