@@ -10,6 +10,28 @@ from datetime import datetime
 st.set_page_config(page_title="Outlet Manager Dashboard", layout="wide")
 
 # ================================
+# CUSTOM CSS TO MOVE SIDEBAR COLLAPSE ICON (>>) TO BOTTOM LEFT
+# ================================
+st.markdown(
+    """
+    <style>
+    /* Target the button used to collapse/expand the sidebar within the main content area */
+    /* This button only appears after the sidebar has been opened once. */
+    .css-1y4gxz7 { /* This targets the outer container holding the collapse button */
+        position: fixed; 
+        bottom: 10px;    /* 10 pixels from the bottom */
+        left: 10px;      /* 10 pixels from the left of the main content area */
+        z-index: 1000;   /* Ensure it's above other elements */
+    }
+    
+    /* Ensure the main 'hamburger' menu to open the sidebar is still at the top for consistency if the user closes the sidebar */
+    /* If you want the hamburger menu to also be at the bottom, use the previous solution as well. */
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# ================================
 # OUTLET PASSWORDS
 # ================================
 outlet_passwords = {
