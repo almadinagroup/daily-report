@@ -10,22 +10,44 @@ from datetime import datetime
 st.set_page_config(page_title="Outlet Manager Dashboard", layout="wide")
 
 # ================================
-# CUSTOM CSS TO MOVE SIDEBAR COLLAPSE ICON (>>) TO BOTTOM LEFT
+# CUSTOM CSS TO MOVE SIDEBAR ICONS TO BOTTOM LEFT
 # ================================
 st.markdown(
     """
     <style>
-    /* Target the button used to collapse/expand the sidebar within the main content area */
-    /* This button only appears after the sidebar has been opened once. */
-    .css-1y4gxz7 { /* This targets the outer container holding the collapse button */
-        position: fixed; 
+    /* 1. Target the 'Open sidebar' (hamburger) button when the sidebar is closed */
+    button[title="Open sidebar"] {
+        position: fixed; /* Fix position relative to the viewport */
         bottom: 10px;    /* 10 pixels from the bottom */
-        left: 10px;      /* 10 pixels from the left of the main content area */
+        left: 10px;      /* 10 pixels from the left */
         z-index: 1000;   /* Ensure it's above other elements */
     }
+
+    /* 2. Target the 'Close sidebar' (collapse <<) button when the sidebar is open */
+    /* This targets the internal div that holds the collapse button and moves it */
+    div[data-testid="stSidebarContent"] ~ div button {
+        position: fixed;
+        bottom: 10px;
+        left: 310px; /* Position it 10px right of the default 300px sidebar width */
+        z-index: 1000;
+    }
+
+    /* 3. Adjust the button container when the sidebar is open to prevent overlap */
+    .css-1y4gxz7 { /* This targets the container div for the collapse button */
+        position: fixed;
+        bottom: 10px;
+        left: 300px; /* Aligned with the sidebar edge */
+        z-index: 1000;
+    }
     
-    /* Ensure the main 'hamburger' menu to open the sidebar is still at the top for consistency if the user closes the sidebar */
-    /* If you want the hamburger menu to also be at the bottom, use the previous solution as well. */
+    /* 4. Fallback for the close button if the above selector fails (using a common class/test ID) */
+    div[data-testid="stAppViewBlockContainer"] > button {
+        position: fixed;
+        bottom: 10px;
+        left: 310px;
+        z-index: 1000;
+    }
+
     </style>
     """,
     unsafe_allow_html=True
